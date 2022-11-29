@@ -1,11 +1,11 @@
-
+In this document a brief introduction about web components and svelte is given. In additon to that we'll be creating our own seperate weblet and test it with [grid3_client](https://github.com/threefoldtech/grid3_client_ts). 
 ### What are web components?
-Web Components is a bunch of different technologies bundeled together allowing the user to create reusable custom elements with their functionalities, which later on can be re-used and utilized in your web apps.
+Web Components is a bunch of different technologies bundled together allowing the user to create reusable custom elements with their functionalities, which later on can be re-used and utilized in your web apps.
 - Web components are based on four main specifications:
 
     1. Custom Elements
 
-        Custom Elements specifications lay the foundation for designing and using new types of DOM elements. According to it authors can define HTML tags with their behaviours and styles.
+        Custom Elements specifications lay the foundation for designing and using new types of DOM elements. According to it authors can define HTML tags with their behaviors and styles.
 
     2. Shadow DOM
 
@@ -38,9 +38,9 @@ Web Components is a bunch of different technologies bundeled together allowing t
 
 ### [Svelte](https://svelte.dev/)
 
-Svelte is a modern JavaScript framework used to build fast web applications. Users use Svelte to either build the entire app woth it or build reusable components that can work as standalone packages for any type of projects. 
+Svelte is a modern JavaScript framework used to build fast web applications. Users use Svelte to either build the entire app with it or build reusable components that can work as standalone packages for any type of projects. 
 
-In a svelete projects it usually consists of one or more components. Each components is a reusable self-contained block with its HTML, CSS and JaveScript/Typescript encapsulated.
+In a svelte projects it usually consists of one or more components. Each components is a reusable self-contained block with its HTML, CSS and JaveScript/Typescript encapsulated.
 
 Building a component should consist of three sections( Script section, HTML section, CSS section).
 
@@ -75,7 +75,7 @@ A svelte store is an object with a subscribe method that allows interested parti
 
     A count store example which includes increment, decrement and reset methods. In this example we're going to make three re-usable components Incrementer , Decrementer and Resetter.
 
-    In ```store.js``` file:
+    In ```stores.js``` file:
 
     ```bash
     import { writable } from 'svelte/store';
@@ -134,14 +134,6 @@ A svelte store is an object with a subscribe method that allows interested parti
     ```bash
     <script>
         import { count } from './stores.js';
-
-        function decrement() {
-            count.update(n => n - 1);
-        }
-    </script>
-
-    <script>
-        import { count } from './stores.js';
         import Incrementer from './Incrementer.svelte';
         import Decrementer from './Decrementer.svelte';
         import Resetter from './Resetter.svelte';
@@ -164,13 +156,13 @@ A svelte store is an object with a subscribe method that allows interested parti
     Result:
     ![](img/stores.gif)
 
-One of the main reason svelte is used in developing our [weblets](https://play.grid.tf/#/) is components can be used as standalone packages that work anywhere.
+One of the main reasons svelte is used in developing our [weblets](https://play.grid.tf/#/) is that components can be used as standalone packages that work anywhere.
 
 ## To build your own weblet, you need to:
 - Choose your own solution
 - Prepare the docker image
 - Prepare the Flist
-- Create a a weblet
+- Create a weblet
 - Set the solution provider
 
 ### 1. Choose your own solution
@@ -195,11 +187,13 @@ go build -o pasty ./cmd/pasty/main.go
 
 In our case, Pasty already has a Dockerfile in its repository. We need to add some minor changes to the Dockerfile.
 
-1. We need to add a directory to save the code pastes to
+- We need to add a directory to save the code pastes to
 ```bash
 RUN mkdir ./file_name/
 ```
-2. We need to create a new image in ubuntu based image that supports ssh server and run our pasty image in it.(inserts details here)
+![](./img/Docker.png)
+
+ 
 
 You can run the image using
 ```bash
@@ -214,8 +208,69 @@ docker run -d \
 
 After that push the image to docker hub
 ```bash
-docker push image-name
+docker push <image-name>
 ```
+
+After that we need to create a new image in ubuntu based image that runs with zinit, supports ssh server and run our pasty image in it.
+- Add a zinit folder and cd to it:
+
+In this folder we will have four zinit file, two to enable the ssh serve, one to enable docker daemon, and the last onw to pull and run our pasty image.
+
+1- Add a ```sshd.yaml```:
+```bash
+exec: bash -c "/usr/sbin/sshd -D"
+```
+2- Add a ```sshkey.yaml```:
+```bash
+exec: |
+  bash -c '
+    if [ ! -z "$SSH_KEY" ]; then
+      mkdir -p /var/run/sshd
+      mkdir -p /root/.ssh
+      touch /root/.ssh/authorized_keys
+      
+      chmod 700 /root/.ssh
+      chmod 600 /root/.ssh/authorized_keys
+      echo "$SSH_KEY" >> /root/.ssh/authorized_keys
+    fi
+  '
+oneshot: true
+```
+3- Add a ```dockerd.yaml```:
+```bash
+exec: bash -c "dockerd -D"
+test: docker ps
+```
+4- Add a ```pasty.yaml```:
+```bash
+exec: bash -c "docker run -d \
+-p 8080:8080 --name pasty \
+-e PASTY_AUTODELETE="true" \
+-e PASTY_STORAGE_FILE_PATH="./savedpasty/" \ mayarosama/pasty:latest"
+after: 
+  - dockerd
+```
+- Add a ```Dockerfile```:
+
+Install zinit and ssh servers and run the zinit process
+```bash
+FROM ubuntu:20.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt update && \
+    apt -y install wget curl vim net-tools iputils-ping openssh-server docker.io 
+
+RUN wget -O /sbin/zinit https://github.com/threefoldtech/zinit/releases/download/v0.2.5/zinit && \
+    chmod +x /sbin/zinit
+
+RUN mkdir -p /etc/zinit
+COPY zinit /etc/zinit
+
+ENTRYPOINT [ "/sbin/zinit", "init" ]
+```
+After that build docker and push it to dockerhub.
+
 
 ### 3. Prepare the flist
 
@@ -246,7 +301,7 @@ To Navigate to the created Flist Either search with the newly created file name 
 
 ![](img/search.png)
 
-Or Navigate to your repository in the contributers section from the Zero-Os Hub and navigate to the newly created Flist.
+Or Navigate to your repository in the contributors section from the Zero-Os Hub and navigate to the newly created Flist.
 
 Then press the preview button to display the Flist's url and some other data.
 
@@ -330,11 +385,13 @@ Next step is to install dependencies:
 yarn
 ```
 
-Now that the configuration is all set up, we need to prepare our classes and depoloyment files.
+Now that the configuration is all set up, we need to prepare our classes and deployment files.
 
 Create a new folder ```types``` and cd to it.
 
 Add a ```Network.ts``` file:
+
+In this file a network class is added to initiate any network instance with a name and ip range and validate them.
 ```bash
 import { v4 } from "uuid";
 
@@ -353,6 +410,8 @@ export class Network {
   }
   ```
 Add a ```rootFs.ts``` file:
+
+In this file a rootFs class is added to calculate the cu value from cpu and memory values.
 ```bash
 import { Decimal } from "decimal.js";
 
@@ -371,35 +430,13 @@ export default function rootFs(
 }
 ```
 
-Add a ```nodeId.ts``` file:
-```bash
-import type { ISelectOption } from "./index";
-
-export default class NodeID {
-  constructor(
-    public type: "automatic" | "manual" = null,
-    public filters = {
-      publicIPs: null, 
-      country: null,
-      farmName: null, 
-      cru: null, 
-      mru: null, 
-      sru: null, 
-
-      update: (key: string, value: any) => {
-        this.filters[key] = value;
-      },
-    },
-    public nodes: ISelectOption[] = []
-  ) {}
-}
-```
 Add a ```pasty.ts``` file:
+
+In this file a pasty class is added to initiate all values needed to deploy.
 ```bash
 import { v4 } from "uuid";
 import { Network } from "./Network";
 import rootFs from "./rootFs";
-import NodeID from "./nodeId";
 
 export class Env {
     constructor(public id = v4(), public key = "", public value = "") {}
@@ -455,7 +492,6 @@ export default class Pasty {
       public publicIp = false,
       public publicIp6 = false,
   
-      public selection = new NodeID(),
       public rootFs = 2,
       public rootFsEditable = false,
       ) {}
@@ -477,6 +513,8 @@ export default class Pasty {
 
   Create a new folder ```utils``` and cd to it.
    Add a ```getGrid.ts``` file:
+
+   In this file a getGrid method is added to connect to the grid with the user's information{mnemonics,storeSecret}.
    ```bash
    import { HTTPMessageBusClient } from "ts-rmb-http-client";
 
