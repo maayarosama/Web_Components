@@ -308,7 +308,7 @@ Then press the preview button to display the Flist's url and some other data.
 ![](img/preview.png)
 
 ### 4. Create your own weblet
-Create a svelte/typescript project.
+[Create a svelte/typescript project.](https://github.com/maayarosama/Pasty_weblet)
 ```bash
 yarn create vite
 ```
